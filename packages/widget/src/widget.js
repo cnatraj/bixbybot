@@ -259,6 +259,8 @@ class BixbyWidget {
         this.addMessage(message.sender, message.text, false);
       });
     }
+    // Load thread ID if it exists
+    this.threadId = localStorage.getItem(`bixby_thread_${this.clientId}`);
   }
 
   saveChatHistory() {
@@ -274,6 +276,10 @@ class BixbyWidget {
       }
     );
     localStorage.setItem(storageKey, JSON.stringify(messages));
+    // Save thread ID if it exists
+    if (this.threadId) {
+      localStorage.setItem(`bixby_thread_${this.clientId}`, this.threadId);
+    }
   }
 
   async sendMessage() {
