@@ -21,25 +21,41 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Debug: Log environment variables (masked)
+    console.log("Environment check:", {
+      hasApiKey: !!OPENAI_API_KEY,
+      hasAssistantId: !!ASSISTANT_ID,
+      apiKeyLength: OPENAI_API_KEY?.length || 0,
+    });
+
     // Validate OpenAI credentials
     if (!OPENAI_API_KEY) {
-      console.error("OPENAI_API_KEY environment variable is not set");
       throw new Error("OpenAI API key not configured");
     }
 
     if (!ASSISTANT_ID) {
-      console.error("OPENAI_ASSISTANT_ID environment variable is not set");
       throw new Error("OpenAI Assistant ID not configured");
     }
 
     const { message, threadId }: ChatRequest = await req.json();
 
     if (!message) {
-      return new Response(JSON.stringify({ error: "Message is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Message is required",
+          version: FUNCTION_VERSION,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
+
+    console.log("Processing request:", {
+      messageLength: message.length,
+      hasThreadId: !!threadId,
+    });
 
     const openai = new OpenAI({
       apiKey: OPENAI_API_KEY,
@@ -48,41 +64,47 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    // Validate OpenAI connection
+    // Test OpenAI connection
     try {
       await openai.models.list();
+      console.log("OpenAI connection successful");
     } catch (error) {
-      console.error("Failed to connect to OpenAI:", error);
-      throw new Error("Invalid OpenAI API key or connection error");
+      console.error("OpenAI connection test failed:", error);
+      throw new Error(`OpenAI connection failed: ${error.message}`);
     }
 
-    // Create a new thread if threadId is not provided
+    // Create or retrieve thread
     let thread;
     try {
       thread = threadId
         ? await openai.beta.threads.retrieve(threadId)
         : await openai.beta.threads.create();
+      console.log("Thread operation successful:", {
+        threadId: thread.id,
+        isNew: !threadId,
+      });
     } catch (error) {
-      console.error("Error creating/retrieving thread:", error);
+      console.error("Thread operation failed:", error);
       if (error.status === 401) {
         throw new Error("Invalid OpenAI API key");
       } else if (error.status === 404 && threadId) {
-        // If thread not found, create a new one
+        console.log("Thread not found, creating new thread");
         thread = await openai.beta.threads.create();
       } else {
-        throw new Error("Failed to initialize chat thread");
+        throw new Error(`Thread operation failed: ${error.message}`);
       }
     }
 
-    // Add the user's message to the thread
+    // Add message to thread
     try {
       await openai.beta.threads.messages.create(thread.id, {
         role: "user",
         content: message,
       });
+      console.log("Message added to thread");
     } catch (error) {
-      console.error("Error adding message to thread:", error);
-      throw new Error("Failed to add message to thread");
+      console.error("Failed to add message:", error);
+      throw new Error(`Failed to add message: ${error.message}`);
     }
 
     // Run the Assistant
@@ -91,33 +113,37 @@ Deno.serve(async (req: Request) => {
       run = await openai.beta.threads.runs.create(thread.id, {
         assistant_id: ASSISTANT_ID,
       });
+      console.log("Assistant run created");
     } catch (error) {
-      console.error("Error creating run:", error);
+      console.error("Run creation failed:", error);
       if (error.status === 404) {
         throw new Error("Invalid Assistant ID");
       }
-      throw new Error("Failed to process message with assistant");
+      throw new Error(`Run creation failed: ${error.message}`);
     }
 
-    // Wait for the completion
+    // Wait for completion
     let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+    console.log("Initial run status:", runStatus.status);
 
     while (runStatus.status !== "completed") {
       if (runStatus.status === "failed" || runStatus.status === "cancelled") {
-        console.error("Run failed with status:", runStatus.status);
+        console.error("Run failed:", runStatus);
         throw new Error(`Assistant run failed: ${runStatus.status}`);
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
       runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      console.log("Updated run status:", runStatus.status);
     }
 
-    // Get the latest message from the thread
+    // Get assistant's response
     let messages;
     try {
       messages = await openai.beta.threads.messages.list(thread.id);
+      console.log("Retrieved messages successfully");
     } catch (error) {
-      console.error("Error retrieving messages:", error);
-      throw new Error("Failed to retrieve assistant response");
+      console.error("Failed to retrieve messages:", error);
+      throw new Error(`Failed to retrieve messages: ${error.message}`);
     }
 
     const lastMessage = messages.data[0];
@@ -135,9 +161,8 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error("Error:", error);
 
-    // Provide more specific error messages based on the type of error
     let errorMessage =
-      error instanceof Error ? error.message : "Failed to process message";
+      error instanceof Error ? error.message : "Unknown error occurred";
     let statusCode = 500;
 
     if (errorMessage.includes("API key")) {
