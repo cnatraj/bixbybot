@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const OPENAI_ASSISTANT_ID = Deno.env.get("OPENAI_ASSISTANT_ID");
-const FUNCTION_VERSION = "1.0.4";
+const FUNCTION_VERSION = "1.0.5";
 
 interface ChatRequest {
   message: string;
@@ -46,6 +46,9 @@ Deno.serve(async (req: Request) => {
 
     const openai = new OpenAI({
       apiKey: OPENAI_API_KEY,
+      defaultHeaders: {
+        "OpenAI-Beta": "assistants=v2",
+      },
     });
 
     // Create or retrieve thread
