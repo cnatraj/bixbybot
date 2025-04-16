@@ -1,0 +1,15 @@
+{
+  "name": "bixbybot-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:admin": "npm run dev -w admin",
+    "dev:widget": "npm run dev -w widget",
+    "build": "npm run build -w admin && npm run build -w widget",
+    "preview": "npm run preview -w admin"
+  }
+}
