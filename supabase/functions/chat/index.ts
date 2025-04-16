@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const ASSISTANT_ID = Deno.env.get("OPENAI_ASSISTANT_ID");
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const FUNCTION_VERSION = "1.0.1"; // Added version number
+const FUNCTION_VERSION = "1.0.2";
 
 interface ChatRequest {
   message: string;
@@ -43,6 +43,9 @@ Deno.serve(async (req: Request) => {
 
     const openai = new OpenAI({
       apiKey: OPENAI_API_KEY,
+      defaultHeaders: {
+        "OpenAI-Beta": "assistants=v2",
+      },
     });
 
     // Validate OpenAI connection
@@ -123,7 +126,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         response: lastMessage.content[0].text.value,
         threadId: thread.id,
-        version: FUNCTION_VERSION, // Added version to response
+        version: FUNCTION_VERSION,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -147,7 +150,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         error: errorMessage,
         details: error instanceof Error ? error.stack : undefined,
-        version: FUNCTION_VERSION, // Added version to error response
+        version: FUNCTION_VERSION,
       }),
       {
         status: statusCode,
