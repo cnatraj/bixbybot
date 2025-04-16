@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const ASSISTANT_ID = Deno.env.get("OPENAI_ASSISTANT_ID");
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const FUNCTION_VERSION = "1.0.2";
+const FUNCTION_VERSION = "1.0.3";
 
 interface ChatRequest {
   message: string;
