@@ -1,4 +1,4 @@
-import { OpenAI } from "npm:openai@4.28.0";
+import { OpenAI } from "npm:openai@4.94.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const OPENAI_ASSISTANT_ID = Deno.env.get("OPENAI_ASSISTANT_ID");
-const FUNCTION_VERSION = "1.0.5";
+const FUNCTION_VERSION = "1.0.6";
 
 interface ChatRequest {
   message: string;
